@@ -31,12 +31,16 @@ extension GameViewModel {
         player.health -= 1
         
         checkHealth()
+        
+        // don't describe room if game is already over
+        guard !isGameOver else { return }
+        
         describeCurrentRoom()
     }
     
     func checkHealth() {
         guard player.health <= 0 else { return }
-        view.showMessage("You died of hunger in the dark dungeon. GAME OVER.")
+        view.showGameOver()
         isGameOver = true
     }
 }

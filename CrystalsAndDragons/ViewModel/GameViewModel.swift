@@ -12,12 +12,18 @@ class GameViewModel {
     // MARK: - Init
     
     init(roomCount: Int) {
-        self.maze = Maze(roomCount: roomCount)
-        self.maze.generate()
-        self.maze.placeItems()
-        
-        let startRoom = maze.rooms[0][0]
+        var maze = Maze(roomCount: roomCount)
         let health = roomCount * 3
+        
+        // regenerate until maze is playable
+        repeat {
+            maze = Maze(roomCount: roomCount)
+            maze.generate()
+            maze.placeItems()
+        } while !maze.isPlayable(health: health)
+        
+        self.maze = maze
+        let startRoom = maze.rooms[0][0]
         self.player = Player(startRoom: startRoom, health: health)
         self.view = ConsoleView()
     }
@@ -25,7 +31,7 @@ class GameViewModel {
     // MARK: - Game Loop
     
     func start() {
-        view.showMessage("Welcome to Crystals and Dragons!")
+        view.showWelcome()
         describeCurrentRoom()
         
         while !isGameOver {
@@ -43,6 +49,7 @@ class GameViewModel {
             view.showRoomDescription(room, health: player.health)
             if let monster = room.monster {
                 view.showMonster(monster)
+                handleMonsterEncounter()
             }
         }
     }
@@ -53,6 +60,14 @@ class GameViewModel {
         
         let command = parts[0]
         let argument = parts.count > 1 ? parts[1] : nil
+        
+        // in dark room only movement is allowed
+        let isInDark = player.currentRoom.isDark && !player.currentRoom.isLit && !player.hasItem(named: "torchlight")
+        
+        if isInDark && !["n", "s", "w", "e"].contains(command) {
+            view.showMessage("Can't see anything in this dark place!")
+            return
+        }
         
         switch command {
         case "n", "s", "w", "e":

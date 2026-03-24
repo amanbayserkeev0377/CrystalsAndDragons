@@ -22,8 +22,8 @@ extension GameViewModel {
         
         view.showMessage("You have 5 seconds to enter a command!")
         
-        let responeded = waitForInputWithTimeout(seconds: 5)
-        resolveMonsterEncounter(didRespond: responeded, isFighting: false)
+        let responded = waitForInputWithTimeout(seconds: 5)
+        resolveMonsterEncounter(didRespond: responded, isFighting: false)
     }
     
     private func waitForInputWithTimeout(seconds: Double) -> Bool {
@@ -76,7 +76,7 @@ extension GameViewModel {
                 player.currentRoom.monster = nil
                 view.showMessage("You defeated the \(monster.name) but got wounded!")
             } else {
-                view.showMessage("You escaped but go wounded!")
+                view.showMessage("You escaped but got wounded!")
             }
         case 2:
             // full success

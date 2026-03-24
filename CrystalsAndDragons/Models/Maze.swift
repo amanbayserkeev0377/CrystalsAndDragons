@@ -1,11 +1,13 @@
+import Foundation
+
 class Maze {
     let width: Int
     let height: Int
     var rooms: [[Room]]
     
     init(roomCount: Int) {
-        // Calculate grid dimensions close to a square
-        let side = Int(Double(roomCount).squareRoot())
+        // Round up so we always have enough rooms
+        let side = Int(ceil(Double(roomCount).squareRoot()))
         self.width = side
         self.height = side
         
@@ -21,6 +23,8 @@ class Maze {
         self.rooms = grid
     }
     
+    // MARK: - Generate Maze
+    
     func generate() {
         var visited = Set<String>()
         
@@ -28,7 +32,7 @@ class Maze {
             return "\(x),\(y)"
         }
         
-        // MARK: - Depth-First Search Algorithm
+        // Depth-First Search Algorithm
         func dfs(x: Int, y: Int) {
             visited.insert(key(x, y))
             
@@ -62,44 +66,100 @@ class Maze {
         dfs(x: 0, y: 0)
     }
     
+    // MARK: - Place Items
+    
     func placeItems() {
         // place key and chest in random different rooms, not the start room
         var availableRooms = rooms.flatMap { $0 }.filter { !($0.x == 0 && $0.y == 0 ) }
         availableRooms.shuffle()
         
-        guard availableRooms.count >= 4 else {
-            print("Not enought rooms to place items. Please enter a larger number.")
-            return
-        }
+        guard availableRooms.count >= 4 else { return }
         
         availableRooms[0].items.append(Item(type: .key, name: "key"))
         availableRooms[1].items.append(Item(type: .chest, name: "chest"))
         availableRooms[2].items.append(Item(type: .torchlight, name: "torchlight"))
         availableRooms[3].items.append(Item(type: .sword, name: "sword"))
         
-        // place food in a few random rooms
-        for i in 4..<min(7, availableRooms.count) {
-            availableRooms[i].items.append(Item(type: .food(restoreAmount: 10), name: "food"))
+        // optional items only if enough rooms
+        if availableRooms.count > 4 {
+            for i in 4..<min(7, availableRooms.count) {
+                availableRooms[i].items.append(Item(type: .food(restoreAmount: 10), name: "food"))
+            }
         }
         
-        // place gold in random rooms
+        // gold in every 3rd room
         for i in stride(from: 0, to: availableRooms.count, by: 3) {
             let coins = Int.random(in: 50...500)
             availableRooms[i].items.append(Item(type: .gold(coins: coins), name: "gold"))
         }
         
-        // place dark rooms (about 1/4 of all rooms)
-        let darkRooms = Array(availableRooms.dropFirst(8))
-        for room in darkRooms.prefix(availableRooms.count / 4) {
+        // dark rooms and monsters only if enough rooms
+        let darkCandidates = Array(availableRooms.dropFirst(4))
+        for room in darkCandidates.prefix(availableRooms.count / 4) {
             room.isDark = true
         }
         
-        // place monsters (about 1/4 of all rooms)
         let monsterNames = ["Dragon", "Goblin", "Troll", "Orc"]
-        let monsterCanditates = Array(availableRooms.dropFirst(4))
-        for room in monsterCanditates.prefix(availableRooms.count / 4) {
+        let monsterCandidates = Array(availableRooms.dropFirst(4))
+        for room in monsterCandidates.prefix(availableRooms.count / 4) {
             let name = monsterNames.randomElement()!
             room.monster = Monster(name: name)
         }
+    }
+    
+    // MARK: - Shortest Path
+    
+    func shortestPath(from start: Room, to target: Room) -> Int? {
+        var visited = Set<String>()
+        var queue: [(room: Room, distance: Int)] = [(start, 0)]
+        
+        func key(_ room: Room) -> String { "\(room.x), \(room.y)" }
+        
+        while !queue.isEmpty {
+            let (current, distance) = queue.removeFirst()
+            let currentKey = key(current)
+            
+            guard !visited.contains(currentKey) else { continue }
+            visited.insert(currentKey)
+            
+            if current.x == target.x && current.y == target.y {
+                return distance
+            }
+            
+            // add all neighbors through open doors
+            for direction in current.doors {
+                let nx: Int
+                let ny: Int
+                switch direction {
+                case .north: nx = current.x; ny = current.y - 1
+                case .south: nx = current.x; ny = current.y + 1
+                case .east: nx = current.x + 1; ny = current.y
+                case .west: nx = current.x - 1; ny = current.y
+                }
+                guard nx >= 0, nx < width, ny >= 0, ny < height else { continue }
+                queue.append((rooms[ny][nx], distance + 1))
+            }
+        }
+        return nil
+    }
+    
+    func isPlayable(health: Int) -> Bool {
+        let start = rooms[0][0]
+        
+        // find key and chest rooms
+        guard let keyRoom = rooms.flatMap({ $0 }).first(where: { $0.items.contains { $0.name == "key" } }),
+              let chestRoom = rooms.flatMap({ $0 }).first(where: { $0.items.contains { $0.name == "chest" } }) else {
+            return false
+        }
+        
+        // check both are reachable within health limit
+        guard let distToKey = shortestPath(from: start, to: keyRoom),
+              let distKeyToChest = shortestPath(from: keyRoom, to: chestRoom) else {
+            return false
+        }
+        
+        // realistic path: start -> key -> chest, with some buffer
+        let minStepsNeeded = distToKey + distKeyToChest
+        return minStepsNeeded < health / 2
     }
 }

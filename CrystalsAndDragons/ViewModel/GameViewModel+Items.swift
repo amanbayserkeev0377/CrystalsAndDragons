@@ -55,7 +55,7 @@ extension GameViewModel {
             return
         }
         
-        view.showMessage("You opened the chest and found the Holy Grail! You WIN! 🏆")
+        view.showWin()
         isGameOver = true
     }
     
