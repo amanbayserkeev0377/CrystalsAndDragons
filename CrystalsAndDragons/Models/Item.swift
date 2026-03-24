@@ -1,4 +1,4 @@
-enum ItemType {
+enum ItemType: Equatable {
     case key
     case chest
     case torchlight
