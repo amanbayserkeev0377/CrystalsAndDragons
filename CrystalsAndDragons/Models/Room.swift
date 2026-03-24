@@ -27,6 +27,7 @@ class Room {
     var items: [Item]
     var isDark: Bool
     var isLit: Bool
+    var monster: Monster?
     
     init(x: Int, y: Int) {
         self.x = x
